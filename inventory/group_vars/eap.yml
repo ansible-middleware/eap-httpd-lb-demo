@@ -1,4 +1,4 @@
 ---
 deploy_apps:
-  - name: simple-webapp
+  - name: simple-webapp-1.0.war
     url: http://people.redhat.com/~rpelisse/simple-webapp-1.0.war

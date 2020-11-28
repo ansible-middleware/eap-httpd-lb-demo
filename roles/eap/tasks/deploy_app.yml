@@ -12,5 +12,5 @@
     timeout: 5000000
     subsystems:
       - deployments:
-          - name: "{{ app.name }}"
+          - name: "{{ app.name | default(downloaded_app.dest | basename) }}"
             path: "{{ downloaded_app.dest }}"
