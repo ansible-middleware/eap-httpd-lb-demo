@@ -6,11 +6,6 @@
     dest: "{{ deploy_app_tmp_dir }}"
   register: downloaded_app
 
-- name: Deploy Application to EAP
-  jcliff:
-    wfly_home: "{{ jboss_home }}"
-    timeout: 5000000
-    subsystems:
-      - deployments:
-          - name: "{{ app.name | default(downloaded_app.dest | basename) }}"
-            path: "{{ downloaded_app.dest }}"
+- name: Build Deployment Facts
+  set_fact:
+    jcliff_deployments: "{{ jcliff_deployments|default([]) + [ {'name': (app.name | default(downloaded_app.dest | basename)), 'path': downloaded_app.dest} ] }}"

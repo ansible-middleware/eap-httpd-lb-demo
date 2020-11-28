@@ -4,6 +4,11 @@
     name: "{{ role_path }}/../infra-ansible/roles/rhsm"
   when: rhsm_manage | bool
 
+- name: "Copy Jcliff Rules Directory"
+  copy:
+    src: "files/rules/"
+    dest: "{{ jcliff_rules_dir }}"
+
 - name: Install Packages
   yum:
     name: "{{ yum_packages }}"
@@ -38,31 +43,39 @@
   retries: 60
   delay: 3
 
+- name: Initialize JCliff Subsystems Fact
+  set_fact:
+    jcliff_subsystems: []
+    jcliff_deployments: []
+
+- name: Build Remote Socket Facts
+  set_fact:
+    jcliff_remote_sockets: "{{ jcliff_remote_sockets|default([]) + [ {'name': hostvars[item]['ansible_hostname'], 'host': hostvars[item]['ansible_default_ipv4']['address'], 'port': mod_cluster_port} ] }}"
+  loop: "{{ groups['httpd'] }}"
+
+- name: Attach Remote Socket Facts to Subsystems
+  set_fact:
+    jcliff_subsystems: "{{ jcliff_subsystems|default([]) + [ { 'standard_sockets': { 'remote_destination_outbound_socket_binding': jcliff_remote_sockets } } ] }}"
+  when: jcliff_remote_sockets is defined and jcliff_remote_sockets | length > 0
+
 - name: Deploy Applications to EAP
   include_tasks: deploy_app.yml
   loop: "{{ deploy_apps }}"
   loop_control:
     loop_var: app
 
-- name: Get List of Standard Sockets
-  command: >
-    {{ jboss_home }}/bin/jboss-cli.sh --output-json -c --controller="localhost:{{ management_port }}" --command="/socket-binding-group=standard-sockets:read-resource(recursive=true)"
-  args:
-    chdir: "{{ jboss_home }}"
-  ignore_errors: true
-  register: standard_sockets
+- name: Attach Deployments Facts to Subsystems
+  set_fact:
+    jcliff_subsystems: "{{ jcliff_subsystems|default([]) + [ { 'deployments': jcliff_deployments } ] }}"
+  when: jcliff_deployments is defined and jcliff_deployments | length > 0
 
-- name: Add httpd proxy
-  command: >
-    {{ jboss_home }}/bin/jboss-cli.sh --output-json -c --controller="localhost:{{ management_port }}" --command="/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding={{ hostvars[item]['ansible_hostname'] }}:add(host={{ hostvars[item]['ansible_default_ipv4']['address']}},port={{ mod_cluster_port }})"
-  when: not (standard_sockets.stdout | from_json)['result']['remote-destination-outbound-socket-binding'] or hostvars[item]['ansible_hostname'] not in ((standard_sockets.stdout | from_json)['result']['remote-destination-outbound-socket-binding'].keys() | list)
-  loop: "{{ groups['httpd'] }}"
 
-- name: Update httpd proxy
-  command: >
-    {{ jboss_home }}/bin/jboss-cli.sh --output-json -c --controller="localhost:{{ management_port }}" --commands="/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding={{ hostvars[item]['ansible_hostname'] }}:write-attribute(name="host",value={{ hostvars[item]['ansible_default_ipv4']['address']}}),/socket-binding-group=standard-sockets/remote-destination-outbound-socket-binding={{ hostvars[item]['ansible_hostname'] }}:write-attribute(name="port",value={{ mod_cluster_port }})"
-  when: (standard_sockets.stdout | from_json)['result']['remote-destination-outbound-socket-binding'] and hostvars[item]['ansible_hostname'] in ((standard_sockets.stdout | from_json)['result']['remote-destination-outbound-socket-binding'].keys() | list)
-  loop: "{{ groups['httpd'] }}"
+- name: Execute Jcliff
+  jcliff:
+    wfly_home: "{{ jboss_home }}"
+    timeout: 5000000
+    subsystems: "{{ jcliff_subsystems }}"
+  when: jcliff_subsystems | length > 0
 
 - name: Update Modcluster proxies
   command: >

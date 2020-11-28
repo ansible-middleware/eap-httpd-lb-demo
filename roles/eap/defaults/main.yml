@@ -29,3 +29,5 @@ deploy_app_tmp_dir: /tmp
 
 management_port: 9990
 mod_cluster_port: 6666
+
+jcliff_rules_dir: /usr/share/jcliff/rules
