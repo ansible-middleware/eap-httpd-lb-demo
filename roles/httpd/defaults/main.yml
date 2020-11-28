@@ -1,0 +1,17 @@
+---
+rhsm_manage: true
+
+rhsm_repos:
+  - "rhel-7-server-rpms"
+  - "jb-coreservices-1-for-rhel-7-server-rpms"
+
+httpd_service_name: jbcs-httpd24-httpd
+
+yum_packages:
+  - firewalld
+  - "@jbcs-httpd24"
+
+server_advertise_enabled: true
+server_advertise_frequency: 5
+
+mod_cluster_expose: false

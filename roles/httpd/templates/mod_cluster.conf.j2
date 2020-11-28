@@ -1,0 +1,37 @@
+# Mod_Cluster configuration for load balancing of JBoss Application Servers
+#
+# The configuration file should be saved to /opt/rh/jbcs-httpd24/root/etc/httpd/conf.d/jboss.conf
+
+# mod_proxy_balancer should be disabled when mod_cluster is used
+LoadModule proxy_cluster_module modules/mod_proxy_cluster.so
+LoadModule cluster_slotmem_module modules/mod_cluster_slotmem.so
+LoadModule manager_module modules/mod_manager.so
+LoadModule advertise_module modules/mod_advertise.so
+
+MemManagerFile /opt/rh/jbcs-httpd24/root/var/cache/mod_cluster
+
+<IfModule manager_module>
+  Listen 0.0.0.0:6666
+  <VirtualHost *:6666>
+    DirectoryIndex disabled
+    <Directory />
+      Require ip 127.0.0.1
+{% for eap_host in groups['eap'] %}
+      Require ip {{ hostvars[eap_host]['ansible_default_ipv4']['address'] }}
+{% endfor %}
+    </Directory>
+    EnableMCPMReceive
+{% if server_advertise_enabled %}
+    ServerAdvertise on
+    AdvertiseFrequency {{ server_advertise_frequency }}
+{% else %}
+    ServerAdvertise off
+{% endif %}
+    <Location /mod_cluster_manager>
+      SetHandler mod_cluster-manager
+{% if not mod_cluster_expose %}
+      Require ip 127.0.0.1
+{% endif %}
+   </Location>
+  </VirtualHost>
+</IfModule>

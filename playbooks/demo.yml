@@ -1,0 +1,6 @@
+---
+- name: Execute HTTPD Playbook
+  import_playbook: httpd.yml
+
+- name: Execute HTTPD Playbook
+  import_playbook: eap.yml

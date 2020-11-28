@@ -1,0 +1,15 @@
+---
+- name: Start httpd
+  service:
+    name: "{{ httpd_service_name }}"
+    state: started
+
+- name: Restart httpd
+  service:
+    name: "{{ httpd_service_name }}"
+    state: restarted
+
+- name: Reload httpd
+  service:
+    name: "{{ httpd_service_name }}"
+    state: reloaded

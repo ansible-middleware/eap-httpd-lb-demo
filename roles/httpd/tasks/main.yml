@@ -1,0 +1,53 @@
+---
+
+- name: Subscribe httpd machines
+  include_role:
+    name: "{{ role_path }}/../infra-ansible/roles/rhsm"
+  when: rhsm_manage | bool
+
+- name: Install Packages
+  yum:
+    name: "{{ yum_packages }}"
+    state: latest
+  notify:
+    - Start httpd
+
+- name: Start and enable Firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Enable Mod_Cluster Firewalld ports
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: yes
+  with_items:
+    - 80/tcp
+    - 443/tcp
+    - 6666/tcp
+    - 23364/udp
+
+- name: Enable httpd
+  service: 
+    name: "{{ httpd_service_name }}"
+    enabled: yes
+    state: started
+
+- name: Copy Mod_Cluster-JBoss config
+  template:
+    src: mod_cluster.conf.j2
+    dest: /opt/rh/jbcs-httpd24/root/etc/httpd/conf.d/mod_cluster.conf
+    backup: yes
+  notify:
+    - Reload httpd
+
+- name: Enable HTTPD on All Interfaces (Port 80)
+  lineinfile:
+    path: /opt/rh/jbcs-httpd24/root/etc/httpd/conf/httpd.conf
+    regexp: "^Listen "
+    line: Listen 0.0.0.0:80
+  notify:
+    - Restart httpd

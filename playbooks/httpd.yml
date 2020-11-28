@@ -1,0 +1,12 @@
+- hosts: httpd
+  become: yes
+  pre_tasks:
+    - name: Gather EAP Group Facts
+      setup:
+      delegate_to: "{{ item }}"
+      delegate_facts: yes
+      loop: "{{ groups['eap'] }}"
+  tasks:
+    - name: Execute httpd role
+      include_role:
+        name: httpd

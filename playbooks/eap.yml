@@ -1,0 +1,15 @@
+- hosts: eap
+  become: yes
+  pre_tasks:
+    - name: Gather HTTPD Group Facts
+      setup:
+      delegate_to: "{{ item }}"
+      delegate_facts: yes
+      loop: "{{ groups['httpd'] }}"
+  tasks:
+    - name: Run Jcliff role
+      include_role:
+        name: wildfly.jcliff.jcliff
+    - name: Execute eap role
+      include_role:
+        name: eap

@@ -1,0 +1,16 @@
+---
+
+- name: Download a app to deploy - {{ app.name }}
+  get_url:
+    url: "{{ app.url }}"
+    dest: "{{ deploy_app_tmp_dir }}"
+  register: downloaded_app
+
+- name: Deploy Application to EAP
+  jcliff:
+    wfly_home: "{{ jboss_home }}"
+    timeout: 5000000
+    subsystems:
+      - deployments:
+          - name: "{{ app.name }}"
+            path: "{{ downloaded_app.dest }}"

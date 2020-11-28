@@ -1,0 +1,5 @@
+---
+- name: Restart eap
+  service:
+    name: "{{ jboss_eap_service_name }}"
+    state: restarted
