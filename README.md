@@ -37,3 +37,18 @@ $ ansible-playbook -i inventory/  playbooks/demo.yml
 ### Mod Cluster Manger
 
 The Mod Cluster Manager application allows for viewing the state of the load balanced EAP instances within the HTTPD server. By default, this application is not exposed. It can be exposed at the `/mod_cluster_manager` context path of HTTTD by specifying `-e mod_cluster_expose=true` when provisioning the environment.
+
+## Development Notes
+
+The contents in this repository leverage assets from unreleased artifacts. In particular, you must have the most recent [jcliff](https://github.com/wildfly-extras/ansible_collections_jcliff) available.
+
+Execute the following steps to prepare your environment
+
+```
+$ mkdir -p collections/ansible_collections/wildfly
+$ pushd collections/ansible_collections/wildfly
+$ git clone https://github.com/wildfly-extras/ansible_collections_jcliff jcliff
+$ popd
+```
+
+_NOTE:_ You should remove the collection that may have been installed during the prerequisites section prior to cloning the upstream repository

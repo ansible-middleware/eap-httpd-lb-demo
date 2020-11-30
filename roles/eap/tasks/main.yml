@@ -9,6 +9,22 @@
     src: "files/rules/"
     dest: "{{ jcliff_rules_dir }}"
 
+- name: "Lookup Rules file"
+  slurp:
+    src: "{{ jcliff_rules_dir }}/rules"
+  register: rules_file
+
+- name: "Get last line of rules file"
+  set_fact:
+    rules_file_last_line: "{{ (rules_file['content'] | b64decode).splitlines()[-1] }}"
+
+- name: Append keycloak rule to jcliff rules file
+  lineinfile:
+    path: "{{ jcliff_rules_dir }}/rules"
+    regex: "^configurable*modcluster"
+    line: "{{ 'configurable.'+(((rules_file_last_line.split('=')[0].split('.')[1] | int)+1)|string) + '=modcluster' }}"
+  when: rules_file_last_line.split('=')[1] != 'modcluster'
+
 - name: Install Packages
   yum:
     name: "{{ yum_packages }}"
@@ -58,6 +74,16 @@
     jcliff_subsystems: "{{ jcliff_subsystems|default([]) + [ { 'standard_sockets': { 'remote_destination_outbound_socket_binding': jcliff_remote_sockets } } ] }}"
   when: jcliff_remote_sockets is defined and jcliff_remote_sockets | length > 0
 
+- name: Build Modcluster Facts
+  set_fact:
+    modcluster_proxies: "{{ modcluster_proxies|default([]) + [ hostvars[item]['ansible_hostname'] ] }}"
+  loop: "{{ groups['httpd'] }}"
+
+- name: Attach Modcluster Facts to Subsystems
+  set_fact:
+    jcliff_subsystems: "{{ jcliff_subsystems|default([]) + [ { 'modcluster': { 'proxy': [ { 'name': 'default', 'proxies': modcluster_proxies } ] } } ] }}"
+  when: modcluster_proxies is defined and modcluster_proxies | length > 0
+
 - name: Deploy Applications to EAP
   include_tasks: deploy_app.yml
   loop: "{{ deploy_apps }}"
@@ -69,19 +95,9 @@
     jcliff_subsystems: "{{ jcliff_subsystems|default([]) + [ { 'deployments': jcliff_deployments } ] }}"
   when: jcliff_deployments is defined and jcliff_deployments | length > 0
 
-
 - name: Execute Jcliff
   jcliff:
     wfly_home: "{{ jboss_home }}"
     timeout: 5000000
     subsystems: "{{ jcliff_subsystems }}"
   when: jcliff_subsystems | length > 0
-
-- name: Update Modcluster proxies
-  command: >
-    {{ jboss_home }}/bin/jboss-cli.sh --output-json -c --controller="localhost:{{ management_port }}" --commands="/subsystem=modcluster/proxy=default:write-attribute(name=proxies,value=[{%for host in groups['httpd']%}{{ hostvars[host]['ansible_hostname'] }}{% if not loop.last %} {% endif %}{% endfor %}])"
-
-- name: Reload Server
-  command: >
-   {{ jboss_home }}/bin/jboss-cli.sh --output-json -c --controller="localhost:{{ management_port }}" --command=":reload"
-
